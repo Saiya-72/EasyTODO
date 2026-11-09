@@ -1,0 +1,67 @@
+# Run the whole stack:   docker compose up --build
+#   Frontend: http://localhost:5173
+#   Backend:  http://localhost:5080/api/health
+#
+# Both services mount your source code, so edits hot-reload without rebuilding the image.
+# Rebuild (--build) only when package.json or the .csproj changes.
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    environment:
+      # "backend" resolves to the backend container on the Compose network.
+      API_PROXY_TARGET: http://backend:8080
+      # Start with mocks so the UI works immediately. Flip to "false" once your
+      # fetch calls in frontend/src/api/ are written, then restart the frontend container.
+      VITE_USE_MOCKS: "true"
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./frontend:/app
+      # Keep the container's node_modules (Linux binaries) instead of your host's.
+      - /app/node_modules
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    ports:
+      - "5080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      # SQLite file lives in a named volume so data survives container restarts.
+      ConnectionStrings__Default: "Data Source=/data/todo.db"
+      # For anything beyond local dev, set a real secret here (or via an .env file):
+      # Jwt__Key: "a-long-random-string-at-least-32-characters"
+    volumes:
+      - ./backend/TodoApi:/src/TodoApi
+      # Keep build output inside the container so it doesn't clash with a host build.
+      - /src/TodoApi/bin
+      - /src/TodoApi/obj
+      - sqlite-data:/data
+
+  # ---------------------------------------------------------------------------
+  # OPTIONAL: PostgreSQL instead of SQLite.
+  # 1. Uncomment this service and the "pgdata" volume below.
+  # 2. dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL ; use UseNpgsql in Program.cs.
+  # 3. Change backend's ConnectionStrings__Default to:
+  #      "Host=db;Port=5432;Database=todo;Username=todo;Password=todo"
+  # 4. Add `- db` under backend.depends_on.
+  # ---------------------------------------------------------------------------
+  # db:
+  #   image: postgres:17-alpine
+  #   environment:
+  #     POSTGRES_DB: todo
+  #     POSTGRES_USER: todo
+  #     POSTGRES_PASSWORD: todo
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+
+volumes:
+  sqlite-data:
+  # pgdata:

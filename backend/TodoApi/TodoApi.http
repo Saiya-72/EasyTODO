@@ -1,0 +1,70 @@
+### Test requests for the backend.
+### VS Code: install the "REST Client" extension, then click "Send Request" above each block.
+### Rider / Visual Studio support .http files natively.
+### Port 5080 = `dotnet run` locally AND the Docker Compose mapping, so these work for both.
+
+@host = http://localhost:5080
+@token = dummy-token
+
+### Health (works today)
+GET {{host}}/api/health
+
+### Register
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{ "username": "jordan", "password": "secret123" }
+
+### Login — copy the "token" from the response into @token above once auth is real
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "username": "jordan", "password": "secret123" }
+
+### Me
+GET {{host}}/api/auth/me
+Authorization: Bearer {{token}}
+
+### Active todos
+GET {{host}}/api/todos?completed=false
+Authorization: Bearer {{token}}
+
+### Completed todos
+GET {{host}}/api/todos?completed=true
+Authorization: Bearer {{token}}
+
+### Create todo
+POST {{host}}/api/todos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "title": "Write the real TodosController", "categoryId": null }
+
+### Complete a todo
+PATCH {{host}}/api/todos/33333333-0000-0000-0000-000000000001
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "isCompleted": true }
+
+### Delete a todo
+DELETE {{host}}/api/todos/33333333-0000-0000-0000-000000000001
+Authorization: Bearer {{token}}
+
+### Categories
+GET {{host}}/api/categories
+Authorization: Bearer {{token}}
+
+### Create category
+POST {{host}}/api/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Gym" }
+
+### Validation error example (expect 400 ProblemDetails)
+POST {{host}}/api/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "" }

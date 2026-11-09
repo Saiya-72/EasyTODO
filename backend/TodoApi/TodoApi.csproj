@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <!-- .NET 10 is the current LTS release. If you only have the .NET 8 SDK installed,
+         change this to net8.0 and the Docker images in ../Dockerfile to 8.0 — nothing else changes. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>TodoApi</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    The scaffold compiles with ZERO NuGet packages so it builds anywhere.
+    Add these as you implement each piece (run from backend/TodoApi/):
+
+    Database (pick ONE provider):
+      dotnet add package Microsoft.EntityFrameworkCore.Sqlite        # simplest: a single file, no extra container
+      dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL       # if you enable the postgres service in docker-compose.yml
+      dotnet add package Microsoft.EntityFrameworkCore.Design        # needed for `dotnet ef migrations add`
+      dotnet tool install -g dotnet-ef                                # the migrations CLI (one time, on your machine)
+
+    Auth:
+      dotnet add package Microsoft.AspNetCore.Authentication.JwtBearer   # validates incoming Bearer tokens
+      dotnet add package BCrypt.Net-Next                                  # password hashing
+
+    Optional, API explorer UI:
+      dotnet add package Microsoft.AspNetCore.OpenApi
+      dotnet add package Scalar.AspNetCore     # or Swashbuckle.AspNetCore
+  -->
+
+</Project>
