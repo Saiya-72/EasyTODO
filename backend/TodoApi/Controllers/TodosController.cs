@@ -12,65 +12,87 @@
 // =============================================================================
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using TodoApi.Dtos;
+using System.Security.Claims;
+using TodoApi.Data;
+using Microsoft.EntityFrameworkCore;
+using TodoApi.Models;
 
 namespace TodoApi.Controllers;
 
 [ApiController]
 [Route("api/todos")]
-// TODO(you): [Authorize]  — on the class, so every action requires a valid token.
-public class TodosController : ControllerBase
+[Authorize]
+public class TodosController(AppDbContext db) : ControllerBase
 {
-    // TODO(you): primary constructor with AppDbContext:
-    //   public class TodosController(AppDbContext db) : ControllerBase
-
-    // TODO(you): once auth works, read the user id from the token's claims:
-    //   private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    //   (needs `using System.Security.Claims;`)
-    //   Consider a small BaseApiController with this property that all controllers inherit.
+    private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     /// <summary>GET /api/todos?completed=false</summary>
     [HttpGet]
-    public ActionResult<IEnumerable<TodoDto>> GetAll([FromQuery] bool? completed)
+    public async Task<ActionResult<IEnumerable<TodoDto>>> GetAll([FromQuery] bool? completed)
     {
-        // TODO(you):
-        //   var query = db.TodoItems.Where(t => t.UserId == CurrentUserId);
-        //   if (completed is not null) query = query.Where(t => t.IsCompleted == completed);
-        //
-        //   // Active tab: oldest first. Completed tab: most recently finished first.
-        //   query = completed == true
-        //       ? query.OrderByDescending(t => t.CompletedAt)
-        //       : query.OrderBy(t => t.CreatedAt);
-        //
-        //   var todos = await query.Select(t => t.ToDto()).ToListAsync();
-        //   return Ok(todos);
-        //
-        //   Note: the .Where/.OrderBy chain is translated to SQL — nothing hits the
-        //   DB until ToListAsync(). That's why filtering here beats filtering in C# memory.
 
-        var result = completed is null
-            ? DummyData.Todos
-            : DummyData.Todos.Where(t => t.IsCompleted == completed).ToList();
-        return Ok(result);
+        if(completed == true)
+        {
+            var todos = await db.TodoItems.FromSql($"""
+                SELECT * FROM "TodoItems"
+                WHERE "IsCompleted" = {completed} AND "UserId" = {CurrentUserId}
+                ORDER BY "CompletedAt" ASC;
+            """).ToListAsync();
+
+            return Ok(todos.Select(c => c.ToDto()));
+        }
+
+        else if(completed == false){
+            var todos = await db.TodoItems.FromSql($"""
+                SELECT * FROM "TodoItems"
+                WHERE "IsCompleted" = {completed} AND "UserId" = {CurrentUserId}
+                ORDER BY "CreatedAt" ASC;
+            """).ToListAsync();
+
+            return Ok(todos.Select(c => c.ToDto()));
+        }
+
+        else
+        {
+            var todos = await db.TodoItems.FromSql($"""
+                SELECT * FROM "TodoItems"
+                WHERE "UserId" = {CurrentUserId}
+                ORDER BY "CreatedAt" ASC
+            """).ToListAsync();
+
+            return Ok(todos.Select(c => c.ToDto()));
+        }
+        
     }
 
     /// <summary>POST /api/todos</summary>
     [HttpPost]
-    public ActionResult<TodoDto> Create(CreateTodoRequest req)
-    {
-        // TODO(you):
-        //   1. If req.CategoryId has a value, make sure that category exists AND belongs
-        //      to this user, otherwise someone could attach todos to another user's category:
-        //        var ok = await db.Categories.AnyAsync(c => c.Id == req.CategoryId && c.UserId == CurrentUserId);
-        //        if (!ok) return BadRequest(new ProblemDetails { Title = "Unknown category." });
-        //   2. var todo = new TodoItem { Title = req.Title.Trim(), CategoryId = req.CategoryId, UserId = CurrentUserId };
-        //   3. db.TodoItems.Add(todo); await db.SaveChangesAsync();
-        //   4. return StatusCode(201, todo.ToDto());
-        //      (CreatedAtAction(...) is more "correct" REST — it adds a Location header —
-        //       but you'd need a GET /api/todos/{id} action to point at.)
+    public async Task<ActionResult<TodoDto>> Create(CreateTodoRequest req)
+    {   
+        if (req.CategoryId.HasValue)
+        {
+            var ok = await db.Categories.FromSql($"""
+                SELECT * FROM "Categories"
+                WHERE "Id" = {req.CategoryId} AND "UserId" = {CurrentUserId}
+            """).AnyAsync();
+            if (!ok) return BadRequest(new ProblemDetails { Title = "Unknown category." });
+        }
 
-        var dummy = new TodoDto(Guid.NewGuid(), req.Title.Trim(), false, req.CategoryId, DateTime.UtcNow, null);
-        return StatusCode(201, dummy);
+        var todo = new TodoItem
+        {
+            Title = req.Title.Trim(),
+            CategoryId = req.CategoryId,
+            UserId = CurrentUserId
+        };
+
+        await db.Database.ExecuteSqlAsync($"""
+            INSERT INTO "TodoItems" ("Id", "Title", "IsCompleted", "CreatedAt", "UserId", "CategoryId")
+            VALUES ({todo.Id}, {todo.Title}, {todo.IsCompleted}, {todo.CreatedAt}, {todo.UserId}, {todo.CategoryId})
+        """);
+
+        return StatusCode(201, todo.ToDto());
     }
 
     /// <summary>PATCH /api/todos/{id}</summary>

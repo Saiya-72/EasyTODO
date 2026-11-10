@@ -11,6 +11,9 @@
 //                   to the other controllers and swap DummyUserId for the real user id
 // =============================================================================
 
+using Microsoft.EntityFrameworkCore;
+using TodoApi.Data;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ---- Services (dependency injection container) ------------------------------
@@ -29,22 +32,18 @@ builder.Services.AddCors(options =>
         .AllowAnyMethod());
 });
 
-// TODO STEP 1 — Database (after adding an EF Core provider package, see TodoApi.csproj)
-//
-//   SQLite:
-//     builder.Services.AddDbContext<AppDbContext>(opt =>
-//         opt.UseSqlite(builder.Configuration.GetConnectionString("Default")));
-//
-//   PostgreSQL:
-//     builder.Services.AddDbContext<AppDbContext>(opt =>
-//         opt.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
-//
+
+// --------------------------------------------------------------------------------------
 //   The connection string lives in appsettings.json under "ConnectionStrings:Default".
 //   docker-compose.yml overrides it with the env var ConnectionStrings__Default
 //   (double underscore = nested key).
 //
 //   AddDbContext registers AppDbContext as "scoped" (one instance per HTTP request),
 //   so controllers just ask for it in their constructor.
+// --------------------------------------------------------------------------------------
+
+builder.Services.AddDbContext<AppDbContext>(opt =>
+        opt.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
 // TODO STEP 2 — Authentication (after adding Microsoft.AspNetCore.Authentication.JwtBearer)
 //
@@ -71,12 +70,11 @@ var app = builder.Build();
 
 // ---- HTTP pipeline (order matters!) -----------------------------------------
 
-// TODO STEP 1b — apply migrations on startup so the Docker container creates the DB itself:
-//   using (var scope = app.Services.CreateScope())
-//   {
-//       var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-//       db.Database.Migrate();
-//   }
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
 //   (Fine for a personal project. In real production you'd run migrations as a deploy step.)
 
 if (app.Environment.IsDevelopment())
