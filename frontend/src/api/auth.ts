@@ -13,7 +13,7 @@
 
 import * as mock from "../mocks/mockStore";
 import type { AuthResponse, LoginRequest, User } from "../types";
-import { USE_MOCKS, notImplemented, setToken } from "./http";
+import { USE_MOCKS, request, setToken } from "./http";
 
 /**
  * POST /api/auth/login
@@ -28,18 +28,18 @@ export async function login(credentials: LoginRequest): Promise<User> {
     return res.user;
   }
 
-  // TODO(you): implement login
-  //   1. const res = await request<AuthResponse>("/auth/login", {
-  //          method: "POST",
-  //          body: JSON.stringify(credentials),
-  //      });
-  //   2. setToken(res.token);   // persist it for later requests
-  //   3. return res.user;
-  //
-  // Note: your request() helper will clear the token and throw on 401. For the
-  // login endpoint specifically you may want a friendlier message like
-  // "Invalid username or password" — catch the error here and rethrow.
-  throw notImplemented("login");
+  try{
+    
+    const res = await request<AuthResponse>("/auth/login", {
+      method: "POST", 
+      body: JSON.stringify(credentials),
+    });
+    setToken(res.token);
+    return res.user;
+
+  } catch {
+    throw new Error("Invalid username or password");
+  }
 }
 
 /**
@@ -56,8 +56,18 @@ export async function register(credentials: LoginRequest): Promise<User> {
     return res.user;
   }
 
-  // TODO(you): same shape as login(), but POST to "/auth/register".
-  throw notImplemented("register");
+  try{
+    
+    const res = await request<AuthResponse>("/auth/register", {
+      method: "POST", 
+      body: JSON.stringify(credentials),
+    });
+    setToken(res.token);
+    return res.user;
+
+  } catch {
+    throw new Error("Invalid username or password");
+  }
 }
 
 /**
@@ -70,9 +80,7 @@ export async function register(credentials: LoginRequest): Promise<User> {
 export async function getCurrentUser(): Promise<User> {
   if (USE_MOCKS) return mock.getCurrentUser();
 
-  // TODO(you): return request<User>("/auth/me");
-  //   Your request() helper attaches the Bearer token automatically.
-  throw notImplemented("getCurrentUser");
+  return request<User>("/auth/me", {method: "GET"});
 }
 
 /**

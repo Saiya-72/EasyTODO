@@ -14,7 +14,7 @@
 
 import * as mock from "../mocks/mockStore";
 import type { Category, CreateCategoryRequest } from "../types";
-import { USE_MOCKS, notImplemented } from "./http";
+import { USE_MOCKS, request } from "./http";
 
 /**
  * GET /api/categories
@@ -23,8 +23,9 @@ import { USE_MOCKS, notImplemented } from "./http";
 export async function getCategories(): Promise<Category[]> {
   if (USE_MOCKS) return mock.getCategories();
 
-  // TODO(you): return request<Category[]>("/categories");
-  throw notImplemented("getCategories");
+  return await request<Category[]>(`/categories`, {
+    method: "GET", 
+  });
 }
 
 /**
@@ -38,9 +39,10 @@ export async function getCategories(): Promise<Category[]> {
 export async function createCategory(req: CreateCategoryRequest): Promise<Category> {
   if (USE_MOCKS) return mock.createCategory(req);
 
-  // TODO(you):
-  //   return request<Category>("/categories", { method: "POST", body: JSON.stringify(req) });
-  throw notImplemented("createCategory");
+  return await request<Category>(`/categories`, {
+    method: "POST", 
+    body: JSON.stringify(req),
+  });
 }
 
 /**
@@ -54,6 +56,7 @@ export async function createCategory(req: CreateCategoryRequest): Promise<Catego
 export async function deleteCategory(id: string): Promise<void> {
   if (USE_MOCKS) return mock.deleteCategory(id);
 
-  // TODO(you): await request<void>(`/categories/${id}`, { method: "DELETE" });
-  throw notImplemented("deleteCategory");
+  return await request<void>(`/categories/${id}`, {
+    method: "DELETE",
+  });
 }

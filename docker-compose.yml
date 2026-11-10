@@ -32,8 +32,8 @@ services:
       - "5080:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      # SQLite file lives in a named volume so data survives container restarts.
-      ConnectionStrings__Default: "Data Source=/data/todo.db"
+      # "db" resolves to the postgres container on the Compose network.
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=todo;Username=todo;Password=todo"
       # For anything beyond local dev, set a real secret here (or via an .env file):
       # Jwt__Key: "a-long-random-string-at-least-32-characters"
     volumes:
@@ -41,7 +41,10 @@ services:
       # Keep build output inside the container so it doesn't clash with a host build.
       - /src/TodoApi/bin
       - /src/TodoApi/obj
-      - sqlite-data:/data
+    depends_on:
+      db:
+        # Wait until Postgres accepts connections (see db.healthcheck), not just until it starts.
+        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   # OPTIONAL: PostgreSQL instead of SQLite.
@@ -51,17 +54,20 @@ services:
   #      "Host=db;Port=5432;Database=todo;Username=todo;Password=todo"
   # 4. Add `- db` under backend.depends_on.
   # ---------------------------------------------------------------------------
-  # db:
-  #   image: postgres:17-alpine
-  #   environment:
-  #     POSTGRES_DB: todo
-  #     POSTGRES_USER: todo
-  #     POSTGRES_PASSWORD: todo
-  #   ports:
-  #     - "5432:5432"
-  #   volumes:
-  #     - pgdata:/var/lib/postgresql/data
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: todo
+      POSTGRES_USER: todo
+      POSTGRES_PASSWORD: todo
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U todo -d todo"]
+      interval: 2s
+      retries: 15
 
 volumes:
-  sqlite-data:
-  # pgdata:
+  pgdata:

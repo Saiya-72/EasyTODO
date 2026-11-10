@@ -16,7 +16,7 @@
 
 import * as mock from "../mocks/mockStore";
 import type { CreateTodoRequest, Todo, UpdateTodoRequest } from "../types";
-import { USE_MOCKS, notImplemented } from "./http";
+import { USE_MOCKS, request } from "./http";
 
 /**
  * GET /api/todos?completed={true|false}
@@ -27,16 +27,9 @@ import { USE_MOCKS, notImplemented } from "./http";
  * the browser) keeps payloads small once a user has hundreds of finished todos.
  */
 export async function getTodos(completed: boolean): Promise<Todo[]> {
-  if (USE_MOCKS) return mock.getTodos(completed);
-
-  // TODO(you):
-  //   return request<Todo[]>(`/todos?completed=${completed}`);
-  //
-  //   If you add more filters later (categoryId, search text), build the query
-  //   string with URLSearchParams instead of string concatenation:
-  //     const params = new URLSearchParams({ completed: String(completed) });
-  //     return request<Todo[]>(`/todos?${params}`);
-  throw notImplemented("getTodos");
+  if(USE_MOCKS) return mock.getTodos(completed);
+ 
+  return await request<Todo[]>(`/todos?completed=${completed}`);
 }
 
 /**
@@ -46,11 +39,12 @@ export async function getTodos(completed: boolean): Promise<Todo[]> {
  *          400 if title is empty
  */
 export async function createTodo(req: CreateTodoRequest): Promise<Todo> {
-  if (USE_MOCKS) return mock.createTodo(req);
+  if(USE_MOCKS) return mock.createTodo(req);
 
-  // TODO(you):
-  //   return request<Todo>("/todos", { method: "POST", body: JSON.stringify(req) });
-  throw notImplemented("createTodo");
+  return await request<Todo>("/todos", {
+    method: "POST",
+    body: JSON.stringify(req),
+  });
 }
 
 /**
@@ -65,13 +59,10 @@ export async function createTodo(req: CreateTodoRequest): Promise<Todo> {
 export async function updateTodo(id: string, req: UpdateTodoRequest): Promise<Todo> {
   if (USE_MOCKS) return mock.updateTodo(id, req);
 
-  // TODO(you):
-  //   return request<Todo>(`/todos/${id}`, { method: "PATCH", body: JSON.stringify(req) });
-  //
-  //   Why PATCH and not PUT? PUT means "replace the whole object", so you'd have
-  //   to send every field. PATCH means "change just these fields", which matches
-  //   how the UI works (toggle one checkbox -> send { isCompleted: true }).
-  throw notImplemented("updateTodo");
+  return await request<Todo>(`/todos/${id}`, {
+    method: "PATCH", 
+    body: JSON.stringify(req),
+  });
 }
 
 /**
@@ -82,8 +73,7 @@ export async function updateTodo(id: string, req: UpdateTodoRequest): Promise<To
 export async function deleteTodo(id: string): Promise<void> {
   if (USE_MOCKS) return mock.deleteTodo(id);
 
-  // TODO(you):
-  //   await request<void>(`/todos/${id}`, { method: "DELETE" });
-  //   (Make sure your request() helper handles 204 without calling .json().)
-  throw notImplemented("deleteTodo");
+  return await request<void>(`/todos/${id}`, {
+    method: "DELETE",
+  });
 }
