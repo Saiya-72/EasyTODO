@@ -18,6 +18,7 @@ using System.Security.Claims;
 using TodoApi.Data;
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Models;
+using System.Text.Json.Nodes;
 
 namespace TodoApi.Controllers;
 
@@ -97,59 +98,100 @@ public class TodosController(AppDbContext db) : ControllerBase
 
     /// <summary>PATCH /api/todos/{id}</summary>
     [HttpPatch("{id:guid}")]
-    public ActionResult<TodoDto> Update(Guid id, UpdateTodoRequest req)
+    public async Task<ActionResult<TodoDto>> Update(Guid id, [FromBody] JsonObject body)
     {
-        // TODO(you):
-        //   1. Load it, scoped to the user:
-        //        var todo = await db.TodoItems.SingleOrDefaultAsync(t => t.Id == id && t.UserId == CurrentUserId);
-        //        if (todo is null) return NotFound();
-        //   2. Apply only the fields that were sent:
-        //        if (req.Title is not null) todo.Title = req.Title.Trim();
-        //        if (req.IsCompleted is bool done && done != todo.IsCompleted)
-        //        {
-        //            todo.IsCompleted = done;
-        //            todo.CompletedAt = done ? DateTime.UtcNow : null;
-        //        }
-        //        // CategoryId: see the GOTCHA comment on UpdateTodoRequest in Dtos.cs.
-        //        // Validate ownership of the new category the same way Create does.
-        //   3. await db.SaveChangesAsync();
-        //      EF Core tracks changes on loaded entities, so no explicit Update() call is needed.
-        //   4. return Ok(todo.ToDto());
+        await using var tx = await db.Database.BeginTransactionAsync();
 
-        var existing = DummyData.Todos.FirstOrDefault(t => t.Id == id);
-        if (existing is null) return NotFound();
+        var todo = await db.TodoItems.FromSql($"""
+            SELECT *
+            FROM "TodoItems"
+            WHERE "Id" = {id} AND "UserId" = {CurrentUserId}
+        """).FirstOrDefaultAsync();
 
-        var updated = existing with
+        if(todo is null) { return NotFound(); }
+
+        if (body.TryGetPropertyValue("title", out var titleNode))      // key was sent
         {
-            Title = req.Title ?? existing.Title,
-            IsCompleted = req.IsCompleted ?? existing.IsCompleted,
-            CategoryId = req.CategoryId ?? existing.CategoryId,
-            CompletedAt = req.IsCompleted switch
+            if (titleNode is not JsonValue tv || !tv.TryGetValue<string>(out var rawTitle))
+                return BadRequest(new ProblemDetails { Title = "title must be a string." });
+
+            var title = rawTitle.Trim();
+            if (title.Length is 0 or > 200)
+                return BadRequest(new ProblemDetails { Title = "title must be 1-200 characters." });
+
+            await db.Database.ExecuteSqlAsync($"""
+                UPDATE "TodoItems"
+                SET "Title" = {title}
+                WHERE "Id" = {id} AND "UserId" = {CurrentUserId};
+            """);
+        }
+
+        if (body.TryGetPropertyValue("isCompleted", out var doneNode))
+        {
+            if (doneNode is not JsonValue dv || !dv.TryGetValue<bool>(out var done))
+                return BadRequest(new ProblemDetails { Title = "isCompleted must be true or false." });
+
+            if (done != todo.IsCompleted)
             {
-                true => DateTime.UtcNow,
-                false => null,
-                null => existing.CompletedAt,
-            },
-        };
-        return Ok(updated); // not persisted — dummy
+                DateTime? completedAt = done ? DateTime.UtcNow : null;
+                await db.Database.ExecuteSqlAsync($"""
+                    UPDATE "TodoItems"
+                    SET "IsCompleted" = {done}, "CompletedAt" = {completedAt}
+                    WHERE "Id" = {id} AND "UserId" = {CurrentUserId};
+                """);
+            }
+        }
+
+        // --- categoryId ---
+        if (body.TryGetPropertyValue("categoryId", out var catNode))   // key was sent
+        {
+            Guid? newCategoryId;
+
+            if (catNode is null)
+            {
+                newCategoryId = null;                                    // explicit null = uncategorize
+            }
+            else if (catNode is JsonValue v && v.TryGetValue<string>(out var s) && Guid.TryParse(s, out var g))
+            {
+                newCategoryId = g;
+
+                var owns = await db.Categories.FromSql($"""
+                    SELECT * 
+                    FROM "Categories"
+                    WHERE "Id" = {newCategoryId} AND "UserId" = {CurrentUserId}
+                """).AnyAsync();
+                if(!owns) return BadRequest(new ProblemDetails { Title = "Unknown category."});
+            }
+            else
+            {
+                return BadRequest(new ProblemDetails { Title = "categoryId must be a GUID or null." });
+            }
+
+            await db.Database.ExecuteSqlAsync($"""
+                UPDATE "TodoItems"
+                SET "CategoryId" = {newCategoryId}
+                WHERE "Id" = {id} AND "UserId" = {CurrentUserId}
+            """);
+
+        }
+        // key absent -> do nothing
+
+        await tx.CommitAsync();
+        await db.Entry(todo).ReloadAsync();
+        return Ok(todo.ToDto());
+
     }
 
     /// <summary>DELETE /api/todos/{id}</summary>
     [HttpDelete("{id:guid}")]
-    public IActionResult Delete(Guid id)
+    public async Task<IActionResult> Delete(Guid id)
     {
-        // TODO(you):
-        //   var todo = await db.TodoItems.SingleOrDefaultAsync(t => t.Id == id && t.UserId == CurrentUserId);
-        //   if (todo is null) return NotFound();
-        //   db.TodoItems.Remove(todo);
-        //   await db.SaveChangesAsync();
-        //   return NoContent();   // 204
-        //
-        //   (EF Core 7+ shortcut, one SQL statement, no load:
-        //    var rows = await db.TodoItems.Where(t => t.Id == id && t.UserId == CurrentUserId).ExecuteDeleteAsync();
-        //    return rows == 0 ? NotFound() : NoContent();)
+        var deleted = await db.Database.ExecuteSqlAsync($"""
+            DELETE FROM "TodoItems"
+            WHERE "Id" = {id} AND "UserId" = {CurrentUserId}
+        """);
 
-        _ = id;
-        return NoContent();
+        return deleted == 0 ? NotFound() : NoContent();
+
     }
 }

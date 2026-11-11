@@ -49,13 +49,9 @@ public record CreateTodoRequest(
 //
 // GOTCHA: CategoryId is ambiguous. The frontend sends { "categoryId": null } to mean
 // "move to Uncategorized", but a missing field ALSO deserializes to null here.
-// Pick one fix:
-//   (a) Simplest: add `bool? ClearCategory` and have the frontend send
-//       { clearCategory: true } instead of { categoryId: null }.
-//   (b) Accept the body as System.Text.Json.Nodes.JsonObject in the controller and
-//       check body.ContainsKey("categoryId") to tell "absent" from "null".
-//   (c) Separate endpoint: PUT /api/todos/{id}/category with { categoryId }.
-// Until you choose, the dummy controller treats null as "don't change".
+// Accept the body as System.Text.Json.Nodes.JsonObject in the controller and
+// check body.ContainsKey("categoryId") to tell "absent" from "null".
+
 public record UpdateTodoRequest(
     [StringLength(200, MinimumLength = 1)] string? Title,
     bool? IsCompleted,

@@ -11,6 +11,10 @@
 // =============================================================================
 
 using TodoApi.Models;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.IdentityModel.Tokens;
 
 namespace TodoApi.Services;
 
@@ -19,43 +23,34 @@ public interface ITokenService
     string CreateToken(User user);
 }
 
-// TODO(you): implement after `dotnet add package Microsoft.AspNetCore.Authentication.JwtBearer`.
-//
-// using System.IdentityModel.Tokens.Jwt;
-// using System.Security.Claims;
-// using System.Text;
-// using Microsoft.IdentityModel.Tokens;
-//
-// public class TokenService(IConfiguration config) : ITokenService
-// {
-//     public string CreateToken(User user)
-//     {
-//         var jwt = config.GetSection("Jwt");
-//
-//         // Claims = facts baked into the token. NameIdentifier is what controllers
-//         // read back with User.FindFirstValue(ClaimTypes.NameIdentifier).
-//         var claims = new[]
-//         {
-//             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-//             new Claim(ClaimTypes.Name, user.Username),
-//         };
-//
-//         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!));
-//         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-//
-//         var token = new JwtSecurityToken(
-//             issuer: jwt["Issuer"],
-//             audience: jwt["Audience"],
-//             claims: claims,
-//             expires: DateTime.UtcNow.AddMinutes(jwt.GetValue<int>("ExpiresMinutes")),
-//             signingCredentials: creds);
-//
-//         return new JwtSecurityTokenHandler().WriteToken(token);
-//     }
-// }
-//
-// Then in Program.cs:  builder.Services.AddScoped<ITokenService, TokenService>();
-//
+public class TokenService(IConfiguration config) : ITokenService
+{
+    public string CreateToken(User user)
+    {
+        var jwt = config.GetSection("Jwt");
+
+        // Claims = facts baked into the token. NameIdentifier is what controllers
+        // read back with User.FindFirstValue(ClaimTypes.NameIdentifier).
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Name, user.Username),
+        };
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: jwt["Issuer"],
+            audience: jwt["Audience"],
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(jwt.GetValue<int>("ExpiresMinutes")),
+            signingCredentials: creds);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+}
+
 // Security notes:
 //   - Jwt:Key must be at least 32 characters for HmacSha256, and must NOT be committed
 //     for anything real. Use `dotnet user-secrets` locally and an env var in Docker.

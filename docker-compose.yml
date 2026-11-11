@@ -15,7 +15,7 @@ services:
       API_PROXY_TARGET: http://backend:8080
       # Start with mocks so the UI works immediately. Flip to "false" once your
       # fetch calls in frontend/src/api/ are written, then restart the frontend container.
-      VITE_USE_MOCKS: "true"
+      VITE_USE_MOCKS: "false"
       CHOKIDAR_USEPOLLING: "true"
     volumes:
       - ./frontend:/app
@@ -31,7 +31,7 @@ services:
     ports:
       - "5080:8080"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       # "db" resolves to the postgres container on the Compose network.
       ConnectionStrings__Default: "Host=db;Port=5432;Database=todo;Username=todo;Password=todo"
       # For anything beyond local dev, set a real secret here (or via an .env file):

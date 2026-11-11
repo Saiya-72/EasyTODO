@@ -13,6 +13,10 @@
 
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Data;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using TodoApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,25 +50,25 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
         opt.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
 // TODO STEP 2 — Authentication (after adding Microsoft.AspNetCore.Authentication.JwtBearer)
-//
-//   var jwt = builder.Configuration.GetSection("Jwt");
-//   builder.Services
-//       .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-//       .AddJwtBearer(opt =>
-//       {
-//           opt.TokenValidationParameters = new TokenValidationParameters
-//           {
-//               ValidateIssuer = true,
-//               ValidIssuer = jwt["Issuer"],
-//               ValidateAudience = true,
-//               ValidAudience = jwt["Audience"],
-//               ValidateLifetime = true,
-//               ValidateIssuerSigningKey = true,
-//               IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!)),
-//           };
-//       });
-//   builder.Services.AddAuthorization();
-//   builder.Services.AddScoped<ITokenService, TokenService>();   // see Services/TokenService.cs
+
+var jwt = builder.Configuration.GetSection("Jwt");
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(opt =>
+    {
+        opt.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwt["Issuer"],
+            ValidateAudience = true,
+            ValidAudience = jwt["Audience"],
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!)),
+        };
+    });
+builder.Services.AddAuthorization();
+builder.Services.AddScoped<ITokenService, TokenService>();   // see Services/TokenService.cs
 
 var app = builder.Build();
 
@@ -85,9 +89,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors(FrontendCors);
 
-// TODO STEP 2b — must come AFTER UseCors and BEFORE MapControllers:
-//   app.UseAuthentication();   // reads the Bearer token and sets HttpContext.User
-//   app.UseAuthorization();    // enforces [Authorize] attributes
+app.UseAuthentication();   // reads the Bearer token and sets HttpContext.User
+app.UseAuthorization();    // enforces [Authorize] attributes
 
 app.MapControllers();
 
