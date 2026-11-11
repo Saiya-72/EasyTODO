@@ -31,7 +31,8 @@ const string FrontendCors = "frontend";
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(FrontendCors, policy => policy
-        .WithOrigins("http://localhost:5173")
+        // Origins are scheme + host (+ port) only, never a path, so GitHub Pages is just the domain.
+        .WithOrigins("http://localhost:5173", "https://saiya-72.github.io")
         .AllowAnyHeader()
         .AllowAnyMethod());
 });

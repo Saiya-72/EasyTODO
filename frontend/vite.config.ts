@@ -16,6 +16,14 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    // GitHub Pages serves this repo at https://saiya-72.github.io/EasyTODO/, so built asset
+    // URLs need that prefix. The dev server stays at "/".
+    base: mode === "production" ? "/EasyTODO/" : "/",
+    build: {
+      // GitHub Pages is set to deploy from main → /docs.
+      outDir: "../docs",
+      emptyOutDir: true,
+    },
     server: {
       host: true, // listen on 0.0.0.0 so the container port is reachable from your browser
       port: 5173,
@@ -26,6 +34,8 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: apiTarget,
           changeOrigin: true,
+          base: "/EasyTODO/",
+          build: { outDir: "../docs", emptyOutDir: true },
         },
       },
     },

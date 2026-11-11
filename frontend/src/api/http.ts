@@ -9,7 +9,7 @@ export const USE_MOCKS: boolean = import.meta.env.VITE_USE_MOCKS !== "false";
  * Base path for the backend. It's relative on purpose: the Vite dev server proxies
  * anything under /api to the C# backend (see vite.config.ts), so no CORS and no hardcoded host.
  */
-export const API_BASE = "/api";
+export const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
 
 /** Thrown by API functions you haven't written yet, so the UI shows a clear message. */
 export function notImplemented(fnName: string): Error {
